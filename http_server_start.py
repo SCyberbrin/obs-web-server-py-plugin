@@ -1,30 +1,39 @@
-import http.server
-import socketserver
+# Third-Party modules
+from werkzeug.serving import make_server
+import flask
 
-
-import threading
 import time
+import threading
 
-import obspython as obs
-from pathlib import Path
+last_thread = False
+
+class ServerThread(threading.Thread):
+    def __init__(self, app, PORT):
+        threading.Thread.__init__(self)
+        self.srv = make_server('127.0.0.1', PORT, app)
+        self.ctx = app.app_context()
+        self.ctx.push()
+    def run(self):
+        print('starting server')
+        self.srv.serve_forever()
+    def shutdown(self):
+        self.srv.shutdown()
 
 
-def http_server_instance(PORT, PATH):
-    Handler = http.server.SimpleHTTPRequestHandler
+def start_server(PORT):
+    global server
+    app = flask.Flask(__name__)
+    server = ServerThread(app, PORT)
+    server.start()
 
-    class MyHttpRequestHandler(http.server.SimpleHTTPRequestHandler):
-        def do_GET(self):
-            self.path = PATH
-            return http.server.SimpleHTTPRequestHandler.do_GET(self)
+    @app.route('/')
+    def index():
+        return flask.render_template('index.html') #html file needs to be inside a templates folder
 
-    # Create an object of the above class
-    handler_object = MyHttpRequestHandler
 
-    my_server = socketserver.TCPServer(("", PORT), handler_object)
-
-    # Star the server
-    print("Serving At Localhost PORT", PORT)
-    my_server.serve_forever()
+def stop_server():
+    global server
+    server.shutdown()
 
 
 # http_server_instance(9000, "/html/index.html")
@@ -33,30 +42,13 @@ def script_description():
 
 
 def script_update(settings):
-    for thread in threading.enumerate(): 
-        print(thread)
-        if thread.name == "Thread-1":
-            pass
-    # t = threading.currentThread()
-    # if t:
-    #     t.do_run = False
-    # print(t, "already existing")
-    t = threading.Thread(target=http_server_instance, args=(9000, "/html/index.html",))
-    print(t, "prepeard")
-    t.start()
-    print(t, "start")
-
-    # if all_processes == []:
-    #     for process in all_processes:
-    #         process.terminate()
-    # process = multiprocessing.Process(target=http_server_instance, args=(9000, "/html/index.html",))
-    # process.start()
-    # all_processes.append(process)
-    # time.sleep(10)
-    # print(all_processes, "now")
-    # for process in all_processes:
-    #     process.terminate()
-    # print(all_processes)
+    global last_thread
+    if last_thread:
+        stop_server()
+        time.sleep(3)
+        
+    start_server(9000)
+    last_thread = True
 
 
 
@@ -91,3 +83,7 @@ def script_update(settings):
 #     Data._text_ = obs.obs_data_get_string(settings, "_text")
 #     Data._int_ = obs.obs_data_get_int(settings, "_int")
 #     Data._settings_ = settings
+
+
+if __name__ == "__main__":
+    script_update(0)
