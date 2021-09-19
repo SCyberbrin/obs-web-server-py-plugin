@@ -1,49 +1,75 @@
 # Third-Party modules
-from werkzeug.serving import make_server
-import flask
+from bottle import Bottle, ServerAdapter, static_file
 
+
+import os
 import time
 import threading
 
 import obspython as obs
 
-last_thread = False
+server = None
 
+class MyWSGIRefServer(ServerAdapter):
+    server = None
+
+    def run(self, handler):
+        from wsgiref.simple_server import make_server, WSGIRequestHandler
+        if self.quiet:
+            class QuietHandler(WSGIRequestHandler):
+                def log_request(*args, **kw): pass
+            self.options['handler_class'] = QuietHandler
+        server = make_server(self.host, self.port, handler, **self.options)
+        print("server running")
+        server.serve_forever()
+
+    def stop(self):
+        # self.server.server_close() <--- alternative but causes bad fd exception
+        server.shutdown()
 
 class ServerThread(threading.Thread):
-    def __init__(self, app, PORT):
+    def __init__(self, PORT, PATH):
         threading.Thread.__init__(self)
-        self.srv = make_server('127.0.0.1', PORT, app)
-        self.ctx = app.app_context()
-        self.ctx.push()
-        self.port = PORT
+        self.server = MyWSGIRefServer(port=PORT)
+        self.path = PATH
     def run(self):
-        print('starting server at PORT ' + str(self.port))
-        self.srv.serve_forever()
+        app = Bottle()
+        
+        @app.route('/')
+        def index():
+            return static_file("index.html", root=self.path)
+
+        @app.route('/<path:path>')
+        def files(path):
+            return static_file(path, root=self.path)
+
+
+        app.run(server=self.server)
+    
     def shutdown(self):
-        self.srv.shutdown()
+        self.server.stop()
+        print("server stoping")
+
 
 
 def start_server(PORT: int, index_path: str):
-    global last_thread, server
-    if last_thread:
-        stop_server()
+    global server
+    if server != None:
+        server.shutdown()
 
-    app = flask.Flask(__name__, static_folder='templates', template_folder='templates')
-    server = ServerThread(app, PORT)
+    server = ServerThread(PORT, index_path)
+    print("server is getting starded!!")
     server.start()
-    last_thread = True
-
-    @app.route('/')
-    def index():
-        return flask.render_template(index_path) #html file needs to be inside a templates folder
+    print("server is starded!!")
 
 
 def stop_server():
     global server
+    print("server is getting closed!!")
     server.shutdown()
-    last_thread = False
-    time.sleep(1) # Wait for the server to shutdown
+    server = None
+    print("server is closed!!")
+    # time.sleep(1) # Wait for the server to shutdown
 
 
 def script_description():
@@ -52,20 +78,23 @@ def script_description():
 
 
 def script_load(settings):
+    print("script load!!")
     index_path = obs.obs_data_get_string(settings, "_html_index")
     port = obs.obs_data_get_int(settings, "_port")
     start_server(port, index_path)
 
 
 def script_unload():
+    print("script unload!!")
     stop_server()
+
 
 
 def script_properties():
     props = obs.obs_properties_create()
 
     obs.obs_properties_add_int(props, "_port", "port:", 1000, 100000, 1) # Setting the ports
-    obs.obs_properties_add_text(props, "_html_index", "HTML file path:", obs.OBS_TEXT_DEFAULT) # Setting the path of the HTML file
+    obs.obs_properties_add_text(props, "_html_index", "HTML folder path:", obs.OBS_TEXT_DEFAULT) # Setting the path of the HTML file
 
 
     return props
