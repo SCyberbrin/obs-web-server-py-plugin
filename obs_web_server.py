@@ -47,7 +47,7 @@ def stop_server():
 
 
 def script_description():
-    return "A python script for obs to create multibel http server for localhost."
+    return "A python script for obs to create multiple HTTP server for localhost.\nAlso, to know is that the script could make your obs slow at start up and at closing."
 
 
 
