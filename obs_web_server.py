@@ -24,8 +24,7 @@ class MyWSGIRefServer(ServerAdapter):
         server.serve_forever()
 
     def stop(self):
-        # self.server.server_close() <--- alternative but causes bad fd exception
-        server.shutdown()
+        self.server.server_close()
 
 class ServerThread(threading.Thread):
     def __init__(self, PORT, PATH):
