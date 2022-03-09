@@ -1,5 +1,6 @@
 
 from concurrent.futures import thread
+from distutils.log import debug
 from threading import Thread
 from bottle import Bottle, static_file
 
@@ -21,7 +22,7 @@ class serverClass(Thread):
         def files(path):
             return static_file(path, root=self.publicPath)
         
-        self.app.run(locals="localhost", port=self.port, quiet=False)
+        self.app.run(locals="localhost", port=self.port, quiet=True)
 
 
     def stop_server(self):
