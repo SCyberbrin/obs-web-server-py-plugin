@@ -11,12 +11,13 @@ def script_description():
 
 def script_load(settings):
     print("script load!!")
-    index_path = obs.obs_data_get_string(settings, "_html_index")
+    current_path = obs.obs_data_get_string(settings, "_html_index")
     port = obs.obs_data_get_int(settings, "_port")
-
     global test
-    curent_path = path.dirname(path.abspath(__file__))
-    test = serverClass(path.join(curent_path, "templates"))
+    if path.isfile(current_path):
+        current_path = path.dirname(current_path)
+
+    test = serverClass(current_path, port)
     test.setDaemon(True)
     test.start()
 
@@ -30,14 +31,9 @@ def script_unload():
 def script_properties():
     props = obs.obs_properties_create()
 
-    obs.obs_properties_add_int(props, "_port", "port:", 1000, 100000, 1) # Setting the ports
+    obs.obs_properties_add_int(props, "_port", "port:", 8080, 100000, 1) # Setting the ports
     obs.obs_properties_add_text(props, "_html_index", "HTML folder path:", obs.OBS_TEXT_DEFAULT) # Setting the path of the HTML file
 
 
     return props
 
-if __name__=='__main__':
-    global test
-    curent_path = path.dirname(path.abspath(__file__))
-    test = serverClass(path.join(curent_path, "templates"))
-    test.start()
